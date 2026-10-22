@@ -1,0 +1,20 @@
+#cloud-config
+# Rendered by Terraform's templatefile(). Runs once, on first boot.
+package_update: true
+packages:
+  - docker.io
+  - caddy
+  - rsync
+
+write_files:
+  # Caddy terminates HTTPS (Let's Encrypt cert for the domain) and forwards to the app container.
+  - path: /etc/caddy/Caddyfile
+    defer: true # write after the caddy package is installed
+    content: |
+      ${domain} {
+        reverse_proxy 127.0.0.1:8080
+      }
+
+runcmd:
+  - systemctl enable --now docker
+  - systemctl restart caddy

@@ -1,0 +1,11 @@
+node_modules
+.env
+dist
+assets/limezu
+assets/heads
+data/
+.superpowers/
+.DS_Store
+test-results
+playwright-report
+.playwright-mcp
