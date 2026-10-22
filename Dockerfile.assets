@@ -1,0 +1,9 @@
+# Overlay that bakes the git-ignored art (assets/) into an already built image.
+# For hosts that can't mount a volume (Render free). Push the result to a PRIVATE registry only:
+# the LimeZu pack is non-commercial and the head photos are of real people.
+#
+#   docker build --platform linux/amd64 -t terminal-oppgaver .
+#   docker build --platform linux/amd64 -f Dockerfile.assets -t terminal-oppgaver-art .
+ARG BASE=terminal-oppgaver
+FROM ${BASE}
+COPY assets /app/assets
