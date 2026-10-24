@@ -130,12 +130,23 @@ function hero(st: State, current: AdminTaskTable | undefined, s: Summary): HTMLE
   text.append(el('span', 'eyebrow', 'Pågår nå'), el('h1', '', current ? current.title : 'Ingen oppgave startet'));
   if (current) text.append(el('p', 'counter', `${s.done} / ${s.total} ferdig`));
 
-  const next = el('button', 'btn btn-primary start-next', st.nextTask ? `Start neste oppgave: ${st.nextTask.title}` : 'Ingen flere oppgaver', { type: 'button' });
-  next.disabled = !st.nextTask;
-  next.addEventListener('click', () => {
-    next.disabled = true;
-    net.send({ type: 'startNext', after: st.currentTaskId });
-  });
+  let next: HTMLButtonElement;
+  if (st.nextTask || !st.currentTaskId) {
+    next = el('button', 'btn btn-primary start-next', st.nextTask ? `Start neste oppgave: ${st.nextTask.title}` : 'Ingen flere oppgaver', { type: 'button' });
+    next.disabled = !st.nextTask;
+    next.addEventListener('click', () => {
+      next.disabled = true;
+      net.send({ type: 'startNext', after: st.currentTaskId });
+    });
+  } else {
+    // Every task has run: let the students roam freely.
+    next = el('button', 'btn btn-primary start-freeplay', st.freeplay ? 'Freeplay pågår' : 'Freeplay', { type: 'button' });
+    next.disabled = st.freeplay;
+    next.addEventListener('click', () => {
+      next.disabled = true;
+      net.send({ type: 'freeplay' });
+    });
+  }
   const reset = el('button', 'btn btn-outline-danger new-session', 'Ny økt', { type: 'button' });
   reset.addEventListener('click', () => {
     if (confirm('Dette fjerner alle elever og resultater. Fortsette?')) net.send({ type: 'newSession' });

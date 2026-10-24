@@ -215,6 +215,24 @@ describe('classroom over WebSocket', () => {
     expect((await adm2.state()).tasks[0].rows[0]).toMatchObject({ name: 'Ola', status: 'ferdig' });
   });
 
+  test('freeplay: only an admin after the last task, sent to everyone, also late joiners', async () => {
+    const { student, admin, connect } = await setup();
+    const a = await student('aaaaaaaa');
+    const adm = await admin();
+    await a.send({ type: 'freeplay' });
+    await adm.send({ type: 'startNext' });
+    await adm.send({ type: 'freeplay' });
+    await adm.send({ type: 'startNext' });
+    await adm.state((x) => x.currentTaskId === 't2');
+    expect(a.msgs.some((m) => m.type === 'freeplay')).toBe(false);
+    await adm.send({ type: 'freeplay' });
+    await a.waitFor((m) => m.type === 'freeplay');
+    expect((await adm.state((x) => x.freeplay)).freeplay).toBe(true);
+    const late = connect();
+    await late.send({ type: 'hello', clientId: 'bbbbbbbb', name: 'B', os: 'linux' });
+    expect(await late.waitFor((m) => m.type === 'freeplay' || m.type === 'task')).toEqual({ type: 'freeplay' });
+  });
+
   test('newSession tells students to reset and empties the table', async () => {
     const { student, admin } = await setup();
     const a = await student('aaaaaaaa');

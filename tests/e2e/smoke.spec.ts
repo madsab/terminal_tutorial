@@ -236,3 +236,52 @@ test('tiss leaves a yellow stain under Homayoon', async ({ browser }) => {
   await student.waitForTimeout(800);
   await student.locator('.scene').screenshot({ path: `${process.env.SHOTS ?? 'test-results'}/tiss.png` });
 });
+
+test('after task 3 the admin starts freeplay; students switch tasks freely and nothing reaches the admin', async ({ browser }) => {
+  const admin = await (await browser.newContext()).newPage();
+  await admin.goto('/admin');
+  await admin.getByPlaceholder('Passord').fill('e2e-pw');
+  await admin.getByRole('button', { name: 'Logg inn' }).click();
+  admin.on('dialog', (d) => d.accept());
+  await admin.getByRole('button', { name: 'Ny økt' }).click();
+  await expect(admin.getByText('Ingen oppgave startet')).toBeVisible();
+  const student = await (await browser.newContext()).newPage();
+  await join(student, 'Fri', 'macOS');
+
+  for (let i = 0; i < 3; i++) {
+    await expect(admin.getByRole('button', { name: 'Freeplay' })).toHaveCount(0);
+    await admin.getByRole('button', { name: /Start neste oppgave/ }).click();
+  }
+  await expect(student.getByRole('heading', { name: 'Oppgave 3: Eeman i banken' })).toBeVisible();
+  await admin.getByRole('button', { name: 'Freeplay', exact: true }).click();
+  await expect(admin.getByRole('button', { name: 'Freeplay pågår' })).toBeDisabled();
+
+  const nav = student.getByRole('navigation', { name: 'Bytt oppgave' });
+  await expect(nav).toContainText('Oppgave 1: Homayoon Bar');
+  await expect(nav.getByRole('button', { name: 'Forrige oppgave' })).toBeDisabled();
+  await expect(student.getByRole('heading', { name: 'Oppgave 1: Homayoon Bar' })).toBeVisible();
+
+  // Finish task 1, then "Prøv igjen" restarts it with a fresh terminal.
+  for (const line of ['cd bar-omrade', 'cd bar', 'kjop-hiroshima', 'cd ..', 'cd toalettet', 'tiss']) await type(student, line);
+  const dialog = student.getByRole('dialog');
+  await expect(dialog.getByText('Venter på neste oppgave…')).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Prøv igjen' }).click();
+  await expect(student.getByRole('dialog')).toHaveCount(0);
+  await expect(student.locator('.task-ending')).toBeHidden();
+  await expect(student.locator('.goals-count')).toHaveText(/^0 av/);
+
+  await nav.getByRole('button', { name: 'Neste oppgave' }).click();
+  await expect(student.getByRole('heading', { name: 'Oppgave 2: Aleksanders pythonslange' })).toBeVisible();
+  await nav.getByRole('button', { name: 'Neste oppgave' }).click();
+  await expect(student.getByRole('heading', { name: 'Oppgave 3: Eeman i banken' })).toBeVisible();
+  await expect(nav.getByRole('button', { name: 'Neste oppgave' })).toBeDisabled();
+
+  // A reload lands on the same task, restarted.
+  await student.reload();
+  await expect(student.getByRole('heading', { name: 'Oppgave 3: Eeman i banken' })).toBeVisible();
+  await expect(nav).toBeVisible();
+
+  // The admin's tables never saw any of it.
+  await expect(admin.getByText('0 / 1 ferdig')).toHaveCount(3); // hero counter + two earlier tasks
+  await expect(admin.getByText('1 / 1 ferdig')).toHaveCount(0);
+});

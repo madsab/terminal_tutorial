@@ -128,6 +128,11 @@ export class Hub {
         if (this.session.startNext()) this.broadcastTask();
         return this.scheduleAdmin();
       }
+      case 'freeplay': {
+        if (!this.admins.has(ws)) return;
+        if (this.session.startFreeplay()) this.broadcastTask();
+        return this.scheduleAdmin();
+      }
       case 'newSession': {
         if (!this.admins.has(ws)) return;
         this.session.reset();
@@ -141,6 +146,7 @@ export class Hub {
   }
 
   private sendTask(ws: WebSocket, clientId: string): void {
+    if (this.session.freeplay) return this.send(ws, { type: 'freeplay' });
     const taskId = this.session.current;
     const myResult = taskId ? this.session.resultFor(clientId, taskId) : undefined;
     this.send(ws, myResult ? { type: 'task', taskId, myResult } : { type: 'task', taskId });

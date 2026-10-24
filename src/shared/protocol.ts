@@ -18,12 +18,16 @@ export interface MyResult {
 export type ServerMsg =
   | { type: 'pong' }
   | { type: 'task'; taskId: string | null; myResult?: MyResult }
-  | { type: 'reset' };
+  | { type: 'reset' }
+  /** Students may switch between all tasks on their own. Nothing they do is reported back. */
+  | { type: 'freeplay' };
 
 /** Admin -> server, on the same socket as students. Nothing but a correct `auth` makes a socket an admin. */
 export type AdminMsg = { type: 'auth'; password: string }
   /** `after` is the task the admin saw as current. A repeated click with a stale `after` is ignored. */
-  | { type: 'startNext'; after?: string | null } | { type: 'newSession' };
+  | { type: 'startNext'; after?: string | null } | { type: 'newSession' }
+  /** Only accepted once every task has started. */
+  | { type: 'freeplay' };
 
 export type RowStatus = 'venter' | 'jobber' | 'ferdig';
 
@@ -56,6 +60,7 @@ export type AdminServerMsg =
       nextTask: { taskId: string; title: string } | null;
       tasks: AdminTaskTable[];
       students: number;
+      freeplay: boolean;
     }
   | { type: 'authFailed' }
   | { type: 'authOk' };

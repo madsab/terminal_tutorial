@@ -28,6 +28,7 @@ export interface SessionSnapshot {
   started: string[];
   current: string | null;
   results: Record<string, Record<string, Result>>;
+  freeplay?: boolean;
 }
 
 const SAVE_DELAY_MS = 250;
@@ -37,6 +38,7 @@ export class Session {
   private students = new Map<string, Student>();
   private started: string[] = [];
   private results: Record<string, Record<string, Result>> = {};
+  private inFreeplay = false;
   private timer?: NodeJS.Timeout;
   private saving: Promise<void> = Promise.resolve();
   private readonly file: string;
@@ -53,6 +55,10 @@ export class Session {
     return this.started.at(-1) ?? null;
   }
 
+  get freeplay(): boolean {
+    return this.inFreeplay;
+  }
+
   private hasTask(id: string) {
     return this.tasks.some((t) => t.id === id);
   }
@@ -64,7 +70,7 @@ export class Session {
 
   /** Records progress. Only the current task takes progress, and a finished student stays finished. */
   progress(clientId: string, taskId: string, stepsDone: boolean[], stats: Stats): void {
-    if (!this.students.has(clientId) || taskId !== this.current) return;
+    if (this.inFreeplay || !this.students.has(clientId) || taskId !== this.current) return;
     const table = (this.results[taskId] ??= {});
     if (table[clientId]?.status === 'ferdig') return;
     table[clientId] = { status: 'jobber', steps: stepsDone.filter(Boolean).length, stats };
@@ -73,7 +79,7 @@ export class Session {
 
   /** The first ending is final. Returns false when it is ignored. */
   end(clientId: string, taskId: string, endingId: string, correct: boolean, stats: Stats): boolean {
-    if (!this.students.has(clientId) || !this.started.includes(taskId)) return false;
+    if (this.inFreeplay || !this.students.has(clientId) || !this.started.includes(taskId)) return false;
     const table = (this.results[taskId] ??= {});
     if (table[clientId]?.status === 'ferdig') return false;
     table[clientId] = { status: 'ferdig', steps: table[clientId]?.steps ?? 0, stats, endingId, correct };
@@ -90,10 +96,19 @@ export class Session {
     return next.id;
   }
 
+  /** Lets students roam all tasks once the last one has started. Freezes the results. */
+  startFreeplay(): boolean {
+    if (this.inFreeplay || this.started.length < this.tasks.length) return false;
+    this.inFreeplay = true;
+    this.changed();
+    return true;
+  }
+
   reset(): void {
     this.students.clear();
     this.started = [];
     this.results = {};
+    this.inFreeplay = false;
     this.changed();
   }
 
@@ -123,6 +138,7 @@ export class Session {
       nextTask: next ? { taskId: next.id, title: next.title } : null,
       tasks: this.started.map((id) => ({ taskId: id, title: this.tasks.find((t) => t.id === id)!.title, intro: this.tasks.find((t) => t.id === id)!.intro, rows: this.rows(id) })),
       students: this.students.size,
+      freeplay: this.inFreeplay,
     };
   }
 
@@ -132,6 +148,7 @@ export class Session {
       started: [...this.started],
       current: this.current,
       results: structuredClone(this.results),
+      freeplay: this.inFreeplay,
     };
   }
 
@@ -174,5 +191,6 @@ export class Session {
     this.students = new Map(snap.students.map((s) => [s.clientId, s]));
     this.started = snap.started;
     this.results = snap.results ?? {};
+    this.inFreeplay = snap.freeplay === true && this.started.length === this.tasks.length;
   }
 }

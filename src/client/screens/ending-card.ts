@@ -1,7 +1,7 @@
 import { el } from '../dom.js';
 
 /** The ending: heading, ending text, stat chips and (in class) the waiting note. Shared by the task panel and the reload screen. */
-export function endingCard(o: { text: string; correct: boolean; stats: Record<string, number>; waitingNote: boolean }): HTMLElement {
+export function endingCard(o: { text: string; correct: boolean; stats: Record<string, number>; waitingNote: boolean; onRetry?(): void }): HTMLElement {
   const card = el('div', `ending-card ${o.correct ? 'correct' : 'wrong'}`);
   card.append(el('h2', 'ending-title', o.correct ? 'Godt jobbet!' : 'Oi da!'), el('p', 'ending-text', o.text));
   const entries = Object.entries(o.stats);
@@ -14,6 +14,11 @@ export function endingCard(o: { text: string; correct: boolean; stats: Record<st
     const wait = el('p', 'wait-note');
     wait.append(el('span', 'dots', '', { 'aria-hidden': 'true' }), document.createTextNode('Venter på neste oppgave…'));
     card.append(wait);
+  }
+  if (o.onRetry) {
+    const retry = el('button', 'btn btn-outline retry', 'Prøv igjen', { type: 'button' });
+    retry.addEventListener('click', o.onRetry);
+    card.append(retry);
   }
   return card;
 }

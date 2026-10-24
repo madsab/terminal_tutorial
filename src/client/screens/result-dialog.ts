@@ -4,7 +4,7 @@ import type { ResultSummary } from './result-summary.js';
 /** Modal result dialog. Removes itself from the DOM when closed and calls onClose once. */
 export function showResultDialog(
   summary: ResultSummary,
-  opts: { waitingNote: boolean; onClose?(): void },
+  opts: { waitingNote: boolean; onClose?(): void; onRetry?(): void },
 ): { close(): void } {
   const dialog = el('dialog', `result-dialog ${summary.correct ? 'correct' : 'wrong'}`, undefined, {
     'aria-labelledby': 'result-dialog-title',
@@ -44,7 +44,14 @@ export function showResultDialog(
   }
 
   const closeBtn = el('button', 'btn btn-primary result-close', 'Lukk', { type: 'button' });
-  dialog.append(closeBtn);
+  const actions = el('div', 'result-actions');
+  let retryBtn: HTMLButtonElement | undefined;
+  if (opts.onRetry) {
+    retryBtn = el('button', 'btn btn-outline retry', 'Prøv igjen', { type: 'button' });
+    actions.append(retryBtn);
+  }
+  actions.append(closeBtn);
+  dialog.append(actions);
 
   let closed = false;
   const finish = () => {
@@ -58,6 +65,10 @@ export function showResultDialog(
     finish();
   };
   closeBtn.addEventListener('click', close);
+  retryBtn?.addEventListener('click', () => {
+    close();
+    opts.onRetry?.();
+  });
   dialog.addEventListener('close', finish);
 
   document.body.append(dialog);

@@ -11,7 +11,7 @@ import { appendInlineCode, el, taskHeading } from '../dom.js';
 import { endingCard } from './ending-card.js';
 import { resultSummary } from './result-summary.js';
 import { showResultDialog } from './result-dialog.js';
-import { renderTopbar } from './topbar.js';
+import { renderTopbar, type TopbarNav } from './topbar.js';
 import { visibleStepCount } from './steps.js';
 
 export interface TaskScreenOptions {
@@ -23,6 +23,10 @@ export interface TaskScreenOptions {
   onEnded?(update: TaskUpdate): void;
   /** Adds "Venter på neste oppgave…" under the ending (classroom mode). */
   waitingNote?: boolean;
+  /** Freeplay: the task switcher in the top bar. */
+  nav?: TopbarNav;
+  /** Freeplay: adds "Prøv igjen" to the ending. */
+  onRetry?(): void;
 }
 
 /** The character's head photo when it exists, otherwise the placeholder's colour and initial. */
@@ -84,7 +88,7 @@ export function mountTaskScreen(root: HTMLElement, opts: TaskScreenOptions): { d
   panel.append(head, intro, commands, goalsHead, bar, steps, feedback, hint, endingSlot);
   win.append(sceneHost, panel);
   const termHost = el('div', 'terminal');
-  page.append(renderTopbar({ student: opts.student }), win, termHost);
+  page.append(renderTopbar({ student: opts.student, nav: opts.nav }), win, termHost);
   root.append(page);
 
   const scene = createDeferredScene();
@@ -146,11 +150,11 @@ export function mountTaskScreen(root: HTMLElement, opts: TaskScreenOptions): { d
       endingSlot.hidden = false;
       panel.classList.add('ended');
       endingSlot.replaceChildren(
-        endingCard({ text: u.ending.text, correct: u.ending.correct, stats: u.stats, waitingNote: !!opts.waitingNote }),
+        endingCard({ text: u.ending.text, correct: u.ending.correct, stats: u.stats, waitingNote: !!opts.waitingNote, onRetry: opts.onRetry }),
       );
       // Let the last scene effect play before the dialog covers it.
       dialogTimer = setTimeout(() => {
-        dialog = showResultDialog(resultSummary(u)!, { waitingNote: !!opts.waitingNote });
+        dialog = showResultDialog(resultSummary(u)!, { waitingNote: !!opts.waitingNote, onRetry: opts.onRetry });
       }, 900);
       opts.onEnded?.(u);
     } else if (!u.ending) opts.onProgress?.(u);

@@ -106,8 +106,34 @@ describe('Session', () => {
     s.end('c1', 't1', 'a', true, {});
     s.reset();
     expect(s.current).toBeNull();
-    expect(s.snapshot()).toEqual({ students: [], started: [], current: null, results: {} });
+    expect(s.snapshot()).toEqual({ students: [], started: [], current: null, results: {}, freeplay: false });
     expect(s.startNext()).toBe('t1');
+  });
+
+  test('freeplay only starts after the last task, and then freezes the results', () => {
+    s.join('c1', 'Ola', 'mac');
+    s.startNext();
+    expect(s.startFreeplay()).toBe(false);
+    s.startNext();
+    s.progress('c1', 't2', [true], { n: 1 });
+    expect(s.startFreeplay()).toBe(true);
+    expect(s.startFreeplay()).toBe(false);
+    expect(s.freeplay).toBe(true);
+    expect(s.adminState().freeplay).toBe(true);
+    s.progress('c1', 't2', [true, true], { n: 2 });
+    expect(s.end('c1', 't2', 'a', true, {})).toBe(false);
+    expect(s.rows('t2')[0]).toMatchObject({ status: 'jobber', steps: 1, stats: { n: 1 } });
+  });
+
+  test('freeplay survives a restart and reset clears it', async () => {
+    s.startNext();
+    s.startNext();
+    s.startFreeplay();
+    await s.flush();
+    const restored = new Session(dir, TASKS);
+    expect(restored.freeplay).toBe(true);
+    restored.reset();
+    expect(restored.freeplay).toBe(false);
   });
 
   test('a restored snapshot equals the pre-restart state (Review Focus 3)', async () => {
